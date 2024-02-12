@@ -18,7 +18,7 @@ struct Trade{
 };
 MemoryRiver<Trade,1>finance("finance");
 struct account_info{
-    account account;
+    account acc;
     bool is_select;
     book select_book;
 };
@@ -74,7 +74,7 @@ int get_privilege(){
     if(login_account.size()==0)
         return -1;
     else
-        return login_account.top().account.privilege;
+        return login_account.top().acc.privilege;
 }
 std::vector<string> keyword_analysis(std::array<char,65> all){
     std::vector<string>a;
@@ -209,14 +209,14 @@ bool check_call_valid(std::vector<string>&s,int mn,int mx){
 }
 void refresh_account_and_book(){
     if(login_account.size()){
-        myaccount.find(login_account.top().account.userid,login_account.top().account);
+        myaccount.find(login_account.top().acc.userid,login_account.top().acc);
         if(login_account.top().is_select)
             myisbn.find(login_account.top().select_book.isbn,login_account.top().select_book);
     }
 }
 int main(){
-    freopen("1.in","r",stdin);
-    freopen("test.out","w",stdout);
+    // freopen("1.in","r",stdin);
+    // freopen("test.out","w",stdout);
     std::ios::sync_with_stdio(0);
     std::cin.tie(0);
     std::cout.tie(0);
@@ -251,7 +251,7 @@ int main(){
                         a.is_login++;
                         myaccount.ins(a.userid,a.password,a);
                         account_info b;
-                        b.account=a;
+                        b.acc=a;
                         b.is_select=false;
                         login_account.push(b);
                     }
@@ -267,7 +267,7 @@ int main(){
                 if(get_privilege()<1||login_account.size()==0)
                     std::cout<<"Invalid\n";
                 else{
-                    account a=login_account.top().account;
+                    account a=login_account.top().acc;
                     myaccount.find(a.userid,a);
                     a.is_login--;
                     myaccount.del(a.userid,a.password);
