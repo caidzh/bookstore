@@ -18,16 +18,16 @@
 class account{
     public:
         int privilege;
-        bool is_login;
+        int is_login;
         std::array<char,65>userid,password,username;
         account(){
             privilege=-1;
-            is_login=false;
+            is_login=0;
             userid=N;
             password=N;
             username=N;
         }
-        account(const int privilege,bool is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username):
+        account(const int privilege,int is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username):
             privilege(privilege),is_login(is_login),userid(userid),password(password),username(username){}
         account(const account &x){
             privilege=x.privilege;
