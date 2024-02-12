@@ -220,7 +220,6 @@ int main(){
     while(s!="exit"&&s!="quit"){
         bool can=false;
         sentence=sentence_analysis(s);
-        // std::cout<<s<<std::endl;
         // 仅有空格的指令
         if(sentence.size()==0)
             continue;
@@ -588,7 +587,8 @@ int main(){
         }
         if(!can)
             std::cout<<"Invalid\n";
-        std::getline(std::cin,s);
+        if(!std::getline(std::cin,s))
+            break;
     }
     return 0;
 }
