@@ -205,8 +205,6 @@ bool check_call_valid(std::vector<string>&s,int mn,int mx){
     return false;
 }
 int main(){
-    freopen("3.in","r",stdin);
-    freopen("test.out","w",stdout);
     std::ios::sync_with_stdio(0);
     std::cin.tie(0);
     std::cout.tie(0);
