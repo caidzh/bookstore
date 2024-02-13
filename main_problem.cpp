@@ -223,7 +223,7 @@ void refresh_account_and_book(){
     }
 }
 int main(){
-    freopen("1.in","r",stdin);
+    // freopen("1.in","r",stdin);
     // freopen("test.out","w",stdout);
     std::ios::sync_with_stdio(0);
     std::cin.tie(0);
