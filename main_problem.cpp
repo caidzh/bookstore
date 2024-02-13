@@ -11,12 +11,12 @@
 #include<regex>
 #include "database.hpp"
 database<account>myaccount;
-database<book>myisbn,myname,myauthor,mykeyword;
+database<book>myisbn,myname,myauthor,mykeyword,myspecial;
 struct Trade{
     bool type;
     double val;
 };
-MemoryRiver<Trade,1>finance("finance");
+MemoryRiver<Trade,2>finance("finance");
 struct account_info{
     account acc;
     bool is_select;
@@ -31,7 +31,8 @@ std::array<char,65> fsta(const string &s){
         arr[i]='\0';
     return arr;
 }
-account create_account(int privilege,bool is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username){
+int special_number;
+account create_account(int privilege,int is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username){
     account a;
     a.privilege=privilege;
     a.is_login=is_login;
@@ -40,10 +41,11 @@ account create_account(int privilege,bool is_login,std::array<char,65>userid,std
     a.username=username;
     return a;
 }
-book create_book(int price,double quantity,bool is_constructed,std::array<char,65>isbn,std::array<char,65>bookname,std::array<char,65>author,std::array<char,65>keyword){
+book create_book(int price,double quantity,bool is_constructed,int special,std::array<char,65>isbn,std::array<char,65>bookname,std::array<char,65>author,std::array<char,65>keyword){
     book a;
     a.price=price;
     a.quantity=quantity;
+    a.special=special;
     a.is_constructed=is_constructed;
     a.isbn=isbn;
     a.bookname=bookname;
@@ -121,6 +123,7 @@ void insert_book(book a,std::vector<string>keyword){
     myisbn.ins(a.isbn,N,a);
     myname.ins(a.bookname,a.isbn,a);
     myauthor.ins(a.author,a.isbn,a);
+    myspecial.ins(fsta(std::to_string(a.special)),a.isbn,a);
     for(std::vector<std::string>::size_type i=0;i<keyword.size();i++)
         mykeyword.ins(fsta(keyword[i]),a.isbn,a);
 }
@@ -128,6 +131,7 @@ void delete_book(book a,std::vector<string>keyword){
     myisbn.del(a.isbn,N);
     myname.del(a.bookname,a.isbn);
     myauthor.del(a.author,a.isbn);
+    myspecial.del(fsta(std::to_string(a.special)),a.isbn);
     for(std::vector<std::string>::size_type i=0;i<keyword.size();i++)
         mykeyword.del(fsta(keyword[i]),a.isbn);
 }
@@ -197,10 +201,12 @@ void finance_init(){
     if(!finance.file.good()){
         finance.initialise("finance");
         finance.write_info(0,1);
+        finance.write_info(0,2);
     }
     else
         finance.file.close();
     finance.sizeofT=sizeof(Trade);
+    finance.get_info(special_number,2);
 }
 bool check_call_valid(std::vector<string>&s,int mn,int mx){
     if((int)(s.size())>=mn&&(int)(s.size())<=mx)
@@ -211,7 +217,7 @@ void refresh_account_and_book(){
     if(login_account.size()){
         myaccount.find(login_account.top().acc.userid,login_account.top().acc);
         if(login_account.top().is_select)
-            myisbn.find(login_account.top().select_book.isbn,login_account.top().select_book);
+            myspecial.find(fsta(std::to_string(login_account.top().select_book.special)),login_account.top().select_book);
     }
 }
 int main(){
@@ -225,6 +231,7 @@ int main(){
     myname.initialise("name");
     myauthor.initialise("author");
     mykeyword.initialise("keyword");
+    myspecial.initialise("special");
     finance_init();
     myaccount.ins(fsta("root"),fsta("sjtu"),create_account(7,false,fsta("root"),fsta("sjtu"),fsta("admin")));
     string s;
@@ -388,7 +395,8 @@ int main(){
                 else{
                     book a;
                     if(!myisbn.find(fsta(sentence[1]),a)){
-                        a=create_book(0,0,false,fsta(sentence[1]),N,N,N);
+                        ++special_number;
+                        a=create_book(0,0,false,special_number,fsta(sentence[1]),N,N,N);
                         insert_book(a,default_vector);
                         login_account.top().is_select=true;
                         login_account.top().select_book=a;
@@ -446,7 +454,7 @@ int main(){
                                 if(sentence[i][1]=='p'){
                                     string price=equal_analysis(sentence[i]);
                                     double val=stringToDouble(price);
-                                    if(val==-1.0)
+                                    if(val<=0)
                                         is_price_illegal=true;
                                 }
                             if(isbn_repeated||keyword_repeated||is_price_illegal)
@@ -607,5 +615,6 @@ int main(){
             break;
         refresh_account_and_book();
     }
+    finance.write_info(special_number,2);
     return 0;
 }
