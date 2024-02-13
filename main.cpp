@@ -11,13 +11,18 @@
 #include<regex>
 #include "database.hpp"
 database<account>myaccount;
-database<book>myisbn,myname,myauthor,mykeyword;
+database<book>myisbn,myname,myauthor,mykeyword,myspecial;
 struct Trade{
     bool type;
     double val;
 };
-MemoryRiver<Trade,1>finance("finance");
-std::stack<account>login_account;
+MemoryRiver<Trade,2>finance("finance");
+struct account_info{
+    account acc;
+    bool is_select;
+    book select_book;
+};
+std::stack<account_info>login_account;
 std::array<char,65> fsta(const string &s){
     std::array<char,65>arr;
     for(std::string::size_type i=0;i<s.length();i++)
@@ -26,7 +31,8 @@ std::array<char,65> fsta(const string &s){
         arr[i]='\0';
     return arr;
 }
-account create_account(int privilege,bool is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username){
+int special_number;
+account create_account(int privilege,int is_login,std::array<char,65>userid,std::array<char,65>password,std::array<char,65>username){
     account a;
     a.privilege=privilege;
     a.is_login=is_login;
@@ -35,10 +41,11 @@ account create_account(int privilege,bool is_login,std::array<char,65>userid,std
     a.username=username;
     return a;
 }
-book create_book(int price,double quantity,bool is_constructed,std::array<char,65>isbn,std::array<char,65>bookname,std::array<char,65>author,std::array<char,65>keyword){
+book create_book(int price,double quantity,bool is_constructed,int special,std::array<char,65>isbn,std::array<char,65>bookname,std::array<char,65>author,std::array<char,65>keyword){
     book a;
     a.price=price;
     a.quantity=quantity;
+    a.special=special;
     a.is_constructed=is_constructed;
     a.isbn=isbn;
     a.bookname=bookname;
@@ -48,6 +55,8 @@ book create_book(int price,double quantity,bool is_constructed,std::array<char,6
 }
 std::vector<string> sentence_analysis(string all){
     std::vector<string>a;
+    if(all.empty())
+        return a;
     string str="";
     for(int i=0;all[i];i++){
         if(all[i]==' '){
@@ -69,10 +78,8 @@ int get_privilege(){
     if(login_account.size()==0)
         return -1;
     else
-        return login_account.top().privilege;
+        return login_account.top().acc.privilege;
 }
-book select_book;
-bool is_select=false;
 std::vector<string> keyword_analysis(std::array<char,65> all){
     std::vector<string>a;
     string str="";
@@ -118,6 +125,7 @@ void insert_book(book a,std::vector<string>keyword){
     myisbn.ins(a.isbn,N,a);
     myname.ins(a.bookname,a.isbn,a);
     myauthor.ins(a.author,a.isbn,a);
+    myspecial.ins(fsta(std::to_string(a.special)),a.isbn,a);
     for(std::vector<std::string>::size_type i=0;i<keyword.size();i++)
         mykeyword.ins(fsta(keyword[i]),a.isbn,a);
 }
@@ -125,6 +133,7 @@ void delete_book(book a,std::vector<string>keyword){
     myisbn.del(a.isbn,N);
     myname.del(a.bookname,a.isbn);
     myauthor.del(a.author,a.isbn);
+    myspecial.del(fsta(std::to_string(a.special)),a.isbn);
     for(std::vector<std::string>::size_type i=0;i<keyword.size();i++)
         mykeyword.del(fsta(keyword[i]),a.isbn);
 }
@@ -194,15 +203,43 @@ void finance_init(){
     if(!finance.file.good()){
         finance.initialise("finance");
         finance.write_info(0,1);
+        finance.write_info(0,2);
     }
     else
         finance.file.close();
     finance.sizeofT=sizeof(Trade);
+    finance.get_info(special_number,2);
 }
 bool check_call_valid(std::vector<string>&s,int mn,int mx){
     if((int)(s.size())>=mn&&(int)(s.size())<=mx)
         return true;
     return false;
+}
+void refresh_account_and_book(){
+    if(login_account.size()>0){
+        myaccount.find(login_account.top().acc.userid,login_account.top().acc);
+        if(login_account.top().is_select)
+            myspecial.find(fsta(std::to_string(login_account.top().select_book.special)),login_account.top().select_book);
+    }
+}
+void clearlogin(){
+    int tmp;
+    myaccount.mlist.get_info(tmp,1);
+    if(tmp==-1)
+        return;
+    blocked_list<account> p;
+    myaccount.mlist.read(p,tmp);
+    while(1){
+        block<account> b;
+        myaccount.mblock.read(b,p.block_pos);
+        for(int i=0;i<p.size;i++)
+            b.book[i].info.is_login=0;
+        myaccount.mblock.update(b,p.block_pos);
+        if(p.next==-1)
+            break;
+        else
+            myaccount.mlist.read(p,p.next);
+    }
 }
 int main(){
     std::ios::sync_with_stdio(0);
@@ -213,9 +250,13 @@ int main(){
     myname.initialise("name");
     myauthor.initialise("author");
     mykeyword.initialise("keyword");
+    myspecial.initialise("special");
     finance_init();
+    clearlogin();
     myaccount.ins(fsta("root"),fsta("sjtu"),create_account(7,false,fsta("root"),fsta("sjtu"),fsta("admin")));
     string s;
+    while(std::cin.peek()=='\n') 
+        std::cin.ignore();
     std::getline(std::cin,s);
     while(s!="exit"&&s!="quit"){
         bool can=false;
@@ -235,9 +276,12 @@ int main(){
                 else{
                     if((get_privilege()<=a.privilege&&(sentence.size()>2&&fsta(sentence[2])==a.password))||get_privilege()>a.privilege){
                         myaccount.del(a.userid,a.password);
-                        a.is_login=true;
+                        a.is_login++;
                         myaccount.ins(a.userid,a.password,a);
-                        login_account.push(a);
+                        account_info b;
+                        b.acc=a;
+                        b.is_select=false;
+                        login_account.push(b);
                     }
                     else
                         std::cout<<"Invalid\n";
@@ -251,9 +295,9 @@ int main(){
                 if(get_privilege()<1||login_account.size()==0)
                     std::cout<<"Invalid\n";
                 else{
-                    account a=login_account.top();
+                    account a=login_account.top().acc;
                     myaccount.find(a.userid,a);
-                    a.is_login=false;
+                    a.is_login--;
                     myaccount.del(a.userid,a.password);
                     myaccount.ins(a.userid,a.password,a);
                     login_account.pop();
@@ -372,14 +416,15 @@ int main(){
                 else{
                     book a;
                     if(!myisbn.find(fsta(sentence[1]),a)){
-                        a=create_book(0,0,false,fsta(sentence[1]),N,N,N);
+                        ++special_number;
+                        a=create_book(0,0,false,special_number,fsta(sentence[1]),N,N,N);
                         insert_book(a,default_vector);
-                        is_select=true;
-                        select_book=a;
+                        login_account.top().is_select=true;
+                        login_account.top().select_book=a;
                     }
                     else{
-                        is_select=true;
-                        select_book=a;
+                        login_account.top().is_select=true;
+                        login_account.top().select_book=a;
                     }
                 }
             }
@@ -395,7 +440,7 @@ int main(){
                 }
                 if(valid){
                     can=true;
-                    if(get_privilege()<3||!is_select)
+                    if(get_privilege()<3||!login_account.top().is_select)
                         std::cout<<"Invalid\n";
                     else{
                         bool is_repeated=false,is_blanked=false;
@@ -414,7 +459,7 @@ int main(){
                                 if(sentence[i][1]=='I'){
                                     string val=equal_analysis(sentence[i]);
                                     book a;
-                                    if(fsta(val)==select_book.isbn||myisbn.find(fsta(val),a))
+                                    if(fsta(val)==login_account.top().select_book.isbn||myisbn.find(fsta(val),a))
                                         isbn_repeated=true;
                                 }
                             for(std::vector<std::string>::size_type i=1;i<sentence.size();i++)
@@ -430,29 +475,29 @@ int main(){
                                 if(sentence[i][1]=='p'){
                                     string price=equal_analysis(sentence[i]);
                                     double val=stringToDouble(price);
-                                    if(val==-1.0)
+                                    if(val<0)
                                         is_price_illegal=true;
                                 }
                             if(isbn_repeated||keyword_repeated||is_price_illegal)
                                 std::cout<<"Invalid\n";
                             else{
-                                std::vector<string>key=keyword_analysis(select_book.keyword);
-                                delete_book(select_book,key);
+                                std::vector<string>key=keyword_analysis(login_account.top().select_book.keyword);
+                                delete_book(login_account.top().select_book,key);
                                 for(std::vector<std::string>::size_type i=1;i<sentence.size();i++){
                                     string what=modify_analysis(sentence[i]),val=equal_analysis(sentence[i]);
                                     if(what[1]=='I')
-                                        select_book.isbn=fsta(val);
+                                        login_account.top().select_book.isbn=fsta(val);
                                     if(what[1]=='n')
-                                        select_book.bookname=fsta(val);
+                                        login_account.top().select_book.bookname=fsta(val);
                                     if(what[1]=='a')
-                                        select_book.author=fsta(val);
+                                        login_account.top().select_book.author=fsta(val);
                                     if(what[1]=='k')
-                                        select_book.keyword=fsta(val);
+                                        login_account.top().select_book.keyword=fsta(val);
                                     if(what[1]=='p')
-                                        select_book.price=stringToDouble(val);
+                                        login_account.top().select_book.price=stringToDouble(val);
                                 }
-                                key=keyword_analysis(select_book.keyword);
-                                insert_book(select_book,key);
+                                key=keyword_analysis(login_account.top().select_book.keyword);
+                                insert_book(login_account.top().select_book,key);
                             }
                         }
                     }
@@ -463,16 +508,16 @@ int main(){
         if(sentence[0]=="import"){
             if(check_call_valid(sentence,3,3)){
                 can=true;
-                if(!is_select||get_privilege()<3)
+                if(!login_account.top().is_select||get_privilege()<3)
                     std::cout<<"Invalid\n";
                 else{
                     if(stringToInt(sentence[1])<=0||stringToDouble(sentence[2])<=0)
                         std::cout<<"Invalid\n";
                     else{
                         int num=stringToInt(sentence[1]);
-                        delete_book(select_book,keyword_analysis(select_book.keyword));
-                        select_book.quantity+=num;
-                        insert_book(select_book,keyword_analysis(select_book.keyword));
+                        delete_book(login_account.top().select_book,keyword_analysis(login_account.top().select_book.keyword));
+                        login_account.top().select_book.quantity+=num;
+                        insert_book(login_account.top().select_book,keyword_analysis(login_account.top().select_book.keyword));
                         Trade a;
                         a.type=1;
                         a.val=stringToDouble(sentence[2]);
@@ -587,8 +632,12 @@ int main(){
         }
         if(!can)
             std::cout<<"Invalid\n";
+        while(std::cin.peek()=='\n') 
+            std::cin.ignore();
         if(!std::getline(std::cin,s))
             break;
+        refresh_account_and_book();
     }
+    finance.write_info(special_number,2);
     return 0;
 }
