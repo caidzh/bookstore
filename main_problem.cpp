@@ -222,9 +222,26 @@ void refresh_account_and_book(){
             myspecial.find(fsta(std::to_string(login_account.top().select_book.special)),login_account.top().select_book);
     }
 }
+void clearlogin(){
+    int tmp;
+    myaccount.mlist.get_info(tmp,1);
+    if(tmp==-1)
+        return;
+    blocked_list<account> p;
+    myaccount.mlist.read(p,tmp);
+    while(1){
+        block<account> b;
+        myaccount.mblock.read(b,p.block_pos);
+        for(int i=0;i<p.size;i++)
+            b.book[i].info.is_login=0;
+        myaccount.mblock.update(b,p.block_pos);
+        if(p.next==-1)
+            break;
+        else
+            myaccount.mlist.read(p,p.next);
+    }
+}
 int main(){
-    // freopen("1.in","r",stdin);
-    // freopen("test.out","w",stdout);
     std::ios::sync_with_stdio(0);
     std::cin.tie(0);
     std::cout.tie(0);
@@ -235,6 +252,7 @@ int main(){
     mykeyword.initialise("keyword");
     myspecial.initialise("special");
     finance_init();
+    clearlogin();
     myaccount.ins(fsta("root"),fsta("sjtu"),create_account(7,false,fsta("root"),fsta("sjtu"),fsta("admin")));
     string s;
     while(std::cin.peek()=='\n') 
