@@ -55,6 +55,8 @@ book create_book(int price,double quantity,bool is_constructed,int special,std::
 }
 std::vector<string> sentence_analysis(string all){
     std::vector<string>a;
+    if(all.empty())
+        return a;
     string str="";
     for(int i=0;all[i];i++){
         if(all[i]==' '){
@@ -214,14 +216,14 @@ bool check_call_valid(std::vector<string>&s,int mn,int mx){
     return false;
 }
 void refresh_account_and_book(){
-    if(login_account.size()){
+    if(login_account.size()>0){
         myaccount.find(login_account.top().acc.userid,login_account.top().acc);
         if(login_account.top().is_select)
             myspecial.find(fsta(std::to_string(login_account.top().select_book.special)),login_account.top().select_book);
     }
 }
 int main(){
-    // freopen("1.in","r",stdin);
+    freopen("1.in","r",stdin);
     // freopen("test.out","w",stdout);
     std::ios::sync_with_stdio(0);
     std::cin.tie(0);
@@ -235,6 +237,8 @@ int main(){
     finance_init();
     myaccount.ins(fsta("root"),fsta("sjtu"),create_account(7,false,fsta("root"),fsta("sjtu"),fsta("admin")));
     string s;
+    while(std::cin.peek()=='\n') 
+        std::cin.ignore();
     std::getline(std::cin,s);
     while(s!="exit"&&s!="quit"){
         bool can=false;
@@ -242,7 +246,6 @@ int main(){
         // 仅有空格的指令
         if(sentence.size()==0)
             continue;
-        // std::cout<<s<<std::endl;
         //myisbn.printall();
         // # 帐户系统指令
         // {0} su [UserID] ([Password])?
@@ -454,7 +457,7 @@ int main(){
                                 if(sentence[i][1]=='p'){
                                     string price=equal_analysis(sentence[i]);
                                     double val=stringToDouble(price);
-                                    if(val<=0)
+                                    if(val<0)
                                         is_price_illegal=true;
                                 }
                             if(isbn_repeated||keyword_repeated||is_price_illegal)
@@ -611,6 +614,8 @@ int main(){
         }
         if(!can)
             std::cout<<"Invalid\n";
+        while(std::cin.peek()=='\n') 
+            std::cin.ignore();
         if(!std::getline(std::cin,s))
             break;
         refresh_account_and_book();
